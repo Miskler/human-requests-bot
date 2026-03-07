@@ -102,7 +102,7 @@ Screenshot is available in the workflow artifacts.
         num = issue["number"]
         if issue["state"] == "closed":
             reopen_issue(num)
-            comment = f"""
+        comment = f"""
 New incident
 Time: {timestamp}
 Run: {RUN_URL}

@@ -11,7 +11,7 @@
         
       - name: report playwright failure
         if: failure()
-        uses: Miskler/human-requests-bot@v7
+        uses: Miskler/human-requests-bot@v8
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           log_path: error.log
