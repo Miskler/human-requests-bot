@@ -2,7 +2,7 @@ import os
 import re
 import hashlib
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 
 TOKEN = os.getenv("INPUT_GITHUB_TOKEN")
 LOG_PATH = os.getenv("INPUT_LOG_PATH")
@@ -76,14 +76,6 @@ def create_issue(title, body):
     r.raise_for_status()
     return r.json()
 
-
-def write_summary():
-    summary_file = os.getenv("GITHUB_STEP_SUMMARY")
-    if summary_file:
-        with open(summary_file, "a", encoding="utf-8") as f:
-            f.write(f"### Screenshot\nScreenshot is available for download in the [workflow artifacts]({ARTIFACTS_URL}).\n")
-
-
 def main():
     log = read_log()
     error = extract_stacktrace(log)
@@ -105,7 +97,7 @@ Run: {RUN_URL}
 Screenshot is available in the workflow artifacts.
 """
     issue = search_issue(hash_id)
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     if issue:
         num = issue["number"]
     if issue["state"] == "closed":
@@ -124,8 +116,6 @@ Screenshot is available in the workflow artifacts.
     else:
         issue = create_issue(title, body)
         print(f"Created issue #{issue['number']}")
-    if SCREENSHOT:
-        write_summary()
 
 if __name__ == "__main__":
     main()

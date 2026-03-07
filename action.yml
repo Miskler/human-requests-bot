@@ -4,13 +4,21 @@ description: "Create/update GitHub issues from Playwright Python failures"
 inputs:
   github_token:
     required: true
+    description: "GitHub token with repo scope"
   log_path:
     required: true
+    description: "Path to the error log file"
   screenshot_path:
     required: false
+    description: "Path to the failure screenshot (optional)"
   labels:
     required: false
     default: "bug,playwright"
+    description: "Comma-separated list of labels for created/updated issues"
+  artifact_retention_days:
+    required: false
+    default: "7"
+    description: "Number of days to retain the uploaded screenshot artifact (1–90)"
 
 runs:
   using: "composite"
@@ -25,17 +33,18 @@ runs:
         python -m pip install --upgrade pip
         pip install -r ${{ github.action_path }}/requirements.txt
 
-    - name: Upload screenshot
+    - name: Upload screenshot (if exists)
+      if: inputs.screenshot_path != '' && hashFiles(inputs.screenshot_path) != ''
       uses: actions/upload-artifact@v4
       with:
         name: failure-screenshot
         path: ${{ inputs.screenshot_path }}
-        retention-days: 7  # Опционально: срок хранения артефакта в днях
+        retention-days: ${{ inputs.artifact_retention_days }}
+        if-no-files-found: warn   # не падать, если файла нет
 
     - name: Run bot
       shell: bash
-      run: |
-        python ${{ github.action_path }}/main.py
+      run: python ${{ github.action_path }}/main.py
       env:
         INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
         INPUT_LOG_PATH: ${{ inputs.log_path }}
