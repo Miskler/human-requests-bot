@@ -100,9 +100,9 @@ Screenshot is available in the workflow artifacts.
     timestamp = datetime.now(timezone.utc).isoformat()
     if issue:
         num = issue["number"]
-    if issue["state"] == "closed":
-        reopen_issue(num)
-        comment = f"""
+        if issue["state"] == "closed":
+            reopen_issue(num)
+            comment = f"""
 New incident
 Time: {timestamp}
 Run: {RUN_URL}
