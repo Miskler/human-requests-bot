@@ -25,6 +25,13 @@ runs:
         python -m pip install --upgrade pip
         pip install -r ${{ github.action_path }}/requirements.txt
 
+    - name: Upload screenshot
+      uses: actions/upload-artifact@v4
+      with:
+        name: failure-screenshot
+        path: ${{ inputs.screenshot_path }}
+        retention-days: 7  # Опционально: срок хранения артефакта в днях
+
     - name: Run bot
       shell: bash
       run: |

@@ -3,10 +3,6 @@ import re
 import hashlib
 import requests
 from datetime import datetime
-from jinja2 import Template
-import base64
-from io import BytesIO
-from PIL import Image
 
 TOKEN = os.getenv("INPUT_GITHUB_TOKEN")
 LOG_PATH = os.getenv("INPUT_LOG_PATH")
@@ -14,7 +10,9 @@ SCREENSHOT = os.getenv("INPUT_SCREENSHOT_PATH")
 LABELS = os.getenv("INPUT_LABELS", "bug,playwright").split(",")
 
 REPO = os.getenv("GITHUB_REPOSITORY")
-RUN_URL = f"https://github.com/{REPO}/actions/runs/{os.getenv('GITHUB_RUN_ID')}"
+RUN_ID = os.getenv("GITHUB_RUN_ID")
+RUN_URL = f"https://github.com/{REPO}/actions/runs/{RUN_ID}"
+ARTIFACTS_URL = f"https://github.com/{REPO}/actions/runs/{RUN_ID}#artifacts"
 OWNER, REPO_NAME = REPO.split("/")
 
 API = "https://api.github.com"
@@ -79,106 +77,55 @@ def create_issue(title, body):
     return r.json()
 
 
-def get_screenshot_data_url(screenshot_path, quality=80):
-    if not screenshot_path or not os.path.exists(screenshot_path):
-        return None
-
-    try:
-        with Image.open(screenshot_path) as img:
-            # Если изображение в RGBA → конвертируем в RGB (WebP lossy не поддерживает альфа-канал)
-            if img.mode in ("RGBA", "LA"):
-                background = Image.new("RGB", img.size, (255, 255, 255))
-                background.paste(img, mask=img.split()[-1])
-                img = background
-            elif img.mode != "RGB":
-                img = img.convert("RGB")
-
-            buffer = BytesIO()
-            img.save(
-                buffer,
-                format="WEBP",
-                quality=quality,         # 0–100; 75–85 — хороший баланс
-                method=6                 # 0–6; 4–6 — лучшее сжатие
-            )
-            buffer.seek(0)
-            b64_data = base64.b64encode(buffer.read()).decode("utf-8")
-            return f"data:image/webp;base64,{b64_data}"
-
-    except Exception as e:
-        print(f"Error converting image to WebP: {e}")
-        # Fallback: оригинальный PNG в base64
-        with open(screenshot_path, "rb") as f:
-            data = base64.b64encode(f.read()).decode("utf-8")
-        return f"data:image/png;base64,{data}"
+def write_summary():
+    summary_file = os.getenv("GITHUB_STEP_SUMMARY")
+    if summary_file:
+        with open(summary_file, "a", encoding="utf-8") as f:
+            f.write(f"### Screenshot\nScreenshot is available for download in the [workflow artifacts]({ARTIFACTS_URL}).\n")
 
 
-def write_summary(screenshot_path):
-    data_url = get_screenshot_data_url(screenshot_path, quality=82)
-    if data_url:
-        summary_file = os.getenv("GITHUB_STEP_SUMMARY")
-        if summary_file and os.path.exists(summary_file):
-            with open(summary_file, "a", encoding="utf-8") as f:
-                f.write(f"### Screenshot\n![Screenshot]({data_url})\n")
-
-ISSUE_TEMPLATE = """
-{{ hidden_tag }}
-
-### Error HumanRequests
-
-Run: {{ run_url }}
-
-```python
-{{ error }}
-```
-{% if screenshot_url %}
-![Screenshot]({{ screenshot_url }})
-{% endif %}
-"""
-COMMENT_TEMPLATE = """
-New incident
-Time: {{ timestamp }}
-Run: {{ run_url }}
-
-```python
-{{ error }}
-```
-{% if screenshot_url %}
-![Screenshot]({{ screenshot_url }})
-{% endif %}
-"""
 def main():
     log = read_log()
     error = extract_stacktrace(log)
     hash_id = fingerprint(error)
     hidden_tag = f"<!-- human-requests-hash:{hash_id} -->"
-    screenshot_data_url = get_screenshot_data_url(SCREENSHOT, quality=82)
-    title = "Test error HumanRequests"
-    body = Template(ISSUE_TEMPLATE).render(
-        hidden_tag=hidden_tag,
-        run_url=RUN_URL,
-        error=error,
-        screenshot_url=screenshot_data_url
-    )
+
+    title = "HumanRequests test failure"
+
+    body = f"""
+{hidden_tag}
+
+### HumanRequests failure
+
+Run: {RUN_URL}
+
+```python
+{error}
+```
+Screenshot is available in the workflow artifacts.
+"""
     issue = search_issue(hash_id)
     timestamp = datetime.utcnow().isoformat()
     if issue:
         num = issue["number"]
     if issue["state"] == "closed":
         reopen_issue(num)
-        comment = Template(COMMENT_TEMPLATE).render(
-            timestamp=timestamp,
-            run_url=RUN_URL,
-            error=error,
-            screenshot_url=screenshot_data_url
-        )
+        comment = f"""
+New incident
+Time: {timestamp}
+Run: {RUN_URL}
+```python
+{error}
+```
+Screenshot is available in the workflow artifacts.
+"""
         comment_issue(num, comment)
         print(f"Updated issue #{num}")
     else:
         issue = create_issue(title, body)
         print(f"Created issue #{issue['number']}")
-    
     if SCREENSHOT:
-        write_summary(SCREENSHOT)
+        write_summary()
 
 if __name__ == "__main__":
     main()
