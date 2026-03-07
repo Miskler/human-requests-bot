@@ -1,5 +1,5 @@
-name: "HumanRequests Issue Bot"
-description: "Create or update GitHub issues from Playwright Python failures"
+name: "Human Requests Bot"
+description: "Create/update GitHub issues from Playwright Python failures"
 
 inputs:
   github_token:
@@ -9,8 +9,28 @@ inputs:
   screenshot_path:
     required: false
   labels:
+    required: false
     default: "bug,playwright"
 
 runs:
-  using: docker
-  image: Dockerfile
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        
+    - name: Install dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r ${{ github.action_path }}/requirements.txt
+
+    - name: Run bot
+      shell: bash
+      run: |
+        python ${{ github.action_path }}/main.py
+      env:
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_LOG_PATH: ${{ inputs.log_path }}
+        INPUT_SCREENSHOT_PATH: ${{ inputs.screenshot_path }}
+        INPUT_LABELS: ${{ inputs.labels }}
