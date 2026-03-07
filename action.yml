@@ -1,0 +1,16 @@
+name: "HumanRequests Issue Bot"
+description: "Create or update GitHub issues from Playwright Python failures"
+
+inputs:
+  github_token:
+    required: true
+  log_path:
+    required: true
+  screenshot_path:
+    required: false
+  labels:
+    default: "bug,playwright"
+
+runs:
+  using: docker
+  image: Dockerfile
