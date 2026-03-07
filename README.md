@@ -11,10 +11,15 @@
         
       - name: report playwright failure
         if: failure()
-        uses: Miskler/human-requests-bot@v8
+        uses: Miskler/human-requests-bot@v9
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           log_path: error.log
           screenshot_path: screenshot.png
 ```
 * Важно чтобы pytest сохранил лог как файл
+
+## Запуск тестов
+```bash
+pytest -v tests/
+```
