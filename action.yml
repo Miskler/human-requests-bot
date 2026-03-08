@@ -40,9 +40,10 @@ runs:
         name: failure-screenshot
         path: ${{ inputs.screenshot_path }}
         retention-days: ${{ inputs.artifact_retention_days }}
-        if-no-files-found: warn   # не падать, если файла нет
+        if-no-files-found: warn
 
     - name: Run bot
+      if: inputs.screenshot_path != '' && hashFiles(inputs.screenshot_path) != ''
       shell: bash
       run: python ${{ github.action_path }}/main.py
       env:
